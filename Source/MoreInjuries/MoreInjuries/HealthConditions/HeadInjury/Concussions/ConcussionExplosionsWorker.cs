@@ -13,9 +13,15 @@ internal sealed class ConcussionExplosionsWorker(MoreInjuryComp parent) : Injury
         Pawn patient = Pawn;
         if (dinfo.Def is not null && KnownDamageGroupNames.Explosions.Value.Contains(dinfo.Def.defName))
         {
+            // only damage that actually got through armor counts; a blast that was fully absorbed cannot cause a concussion
+            float amount = Parent.GetEffectiveDamage(in dinfo);
+            if (amount <= Mathf.Epsilon)
+            {
+                return;
+            }
             // ((1 / e) * x) / ((1 / e) * x + 1)
             const float E_INVERSE = 1f / (float)Math.E;
-            float chance = E_INVERSE * dinfo.Amount / ((E_INVERSE * dinfo.Amount) + 1);
+            float chance = E_INVERSE * amount / ((E_INVERSE * amount) + 1);
             if (Rand.Chance(chance * MoreInjuriesMod.Settings.ConcussionChance) && patient.health.hediffSet.GetBrain() is BodyPartRecord brain)
             {
                 if (!patient.health.hediffSet.TryGetHediff(KnownHediffDefOf.Concussion, out Hediff? concussion))

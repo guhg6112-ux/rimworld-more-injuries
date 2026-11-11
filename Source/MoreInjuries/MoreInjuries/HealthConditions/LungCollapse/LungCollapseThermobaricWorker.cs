@@ -18,8 +18,14 @@ internal sealed class LungCollapseThermobaricWorker(MoreInjuryComp parent) : Lun
         }
         Pawn patient = Pawn;
         float chance = MoreInjuriesMod.Settings.LungCollapseChanceOnThermobaricDamage;
+        // only damage that actually got through armor can injure the lungs; a blast that was fully absorbed does nothing
+        float effectiveDamage = Parent.GetEffectiveDamage(in dinfo);
+        if (effectiveDamage <= Mathf.Epsilon)
+        {
+            return;
+        }
         // small explosions won't do as much thermobaric damage
-        float damageChance = Mathf.Clamp01(dinfo.Amount / 20f);
+        float damageChance = Mathf.Clamp01(effectiveDamage / 20f);
         bool chanceLung1 = Rand.Chance(chance * damageChance);
         bool chanceLung2 = Rand.Chance(chance * damageChance);
         if (!chanceLung1 && !chanceLung2)

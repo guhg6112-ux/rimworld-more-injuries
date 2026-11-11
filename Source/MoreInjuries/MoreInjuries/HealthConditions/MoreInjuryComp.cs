@@ -29,6 +29,18 @@ public class MoreInjuryComp : ThingComp
 
     public bool CallbackActive { get; private set; } = false;
 
+    /// <summary>
+    /// The total damage that actually landed on the pawn (i.e. after armor and other reductions) during the damage event
+    /// that is currently being dispatched to <see cref="IPostPostApplyDamageHandler"/>s. Zero outside of that dispatch.
+    /// </summary>
+    public float TotalDamageDealt { get; private set; }
+
+    /// <summary>
+    /// Returns the damage amount handlers should base their chances on: the amount of the incoming hit, but never more than
+    /// what actually got through armor. A hit that was fully absorbed or deflected yields zero.
+    /// </summary>
+    public float GetEffectiveDamage(ref readonly DamageInfo dinfo) => Math.Min(dinfo.Amount, TotalDamageDealt);
+
     internal bool FailedLoading { get; set; } = false;
 
     public MoreInjuryCompProperties Properties => (MoreInjuryCompProperties)props;
@@ -157,9 +169,17 @@ public class MoreInjuryComp : ThingComp
         }
         if (parent.Map is not null)
         {
-            foreach (IPostPostApplyDamageHandler handler in _postPostApplyDamageHandlers.GetActive())
+            TotalDamageDealt = totalDamageDealt;
+            try
             {
-                handler.PostPostApplyDamage(in dinfo);
+                foreach (IPostPostApplyDamageHandler handler in _postPostApplyDamageHandlers.GetActive())
+                {
+                    handler.PostPostApplyDamage(in dinfo);
+                }
+            }
+            finally
+            {
+                TotalDamageDealt = 0f;
             }
         }
         base.PostPostApplyDamage(dinfo, totalDamageDealt);
