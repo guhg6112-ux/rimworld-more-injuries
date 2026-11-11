@@ -23,5 +23,30 @@ jobs:
         run: dotnet restore Source\MoreInjuries\MoreInjuries.slnx
       - name: Ensure project builds in Release configuration
         run: dotnet build Source\MoreInjuries\MoreInjuries.slnx -c Release --no-restore
+      - name: Package mod folder
+        shell: pwsh
+        run: |
+          $dll = Get-ChildItem -Path Source/MoreInjuries/artifacts/bin -Recurse -Filter MoreInjuries.dll |
+            Where-Object { $_.FullName -match 'release' } | Select-Object -First 1
+          if (-not $dll) { throw 'MoreInjuries.dll was not found in the Release build output' }
+          $out = 'package/MoreInjuries'
+          New-Item -ItemType Directory -Force -Path "$out/1.6/Assemblies" | Out-Null
+          Copy-Item $dll.FullName "$out/1.6/Assemblies/"
+          foreach ($d in 'About','Defs','Languages','Patches','Sounds','Textures') {
+            if (Test-Path $d) { Copy-Item $d "$out/$d" -Recurse }
+          }
+          # RimWorld 1.7 reuses the 1.6 build (the 1.5 folder is not shipped here)
+          $loadFolders = @(
+            '<loadFolders>',
+            '  <v1.6>', '    <li>/</li>', '    <li>1.6</li>', '  </v1.6>',
+            '  <v1.7>', '    <li>/</li>', '    <li>1.6</li>', '  </v1.7>',
+            '</loadFolders>'
+          )
+          Set-Content -Path "$out/LoadFolders.xml" -Value $loadFolders
+      - name: Upload mod folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoreInjuries-build
+          path: package
       - name: Run unit tests
         run: dotnet test Source\MoreInjuries\MoreInjuries.slnx -c Test --no-restore
